@@ -68,6 +68,29 @@ val x = {
 // Now x = 20
 ```
 
+## Loops
+
+```scala
+var i = 0
+while (i < 5) {
+  println(i)
+  i += 1
+}
+
+for (i <- 1 to 10) {
+  println(i)
+}
+
+for (i <- 1 until 10) {
+  println(i)
+}
+// Scala does not support i++
+do {
+  println(i)
+  i += 1
+} while(i < 5)
+```
+
 ## Object Oriented scala
 
 Methods in Scala are defined with parameter types and return types. Although types can also be inferred
@@ -132,3 +155,156 @@ class Cat extends Animal {
   }
 }
 ```
+
+### Access and visibility
+
+| Modifier | Class | Companion Object | Package | Subclass | Project |
+|--------:|--------:|--------------:|-------------:|------------:|
+| Default | Yes | Yes | Yes | Yes | Yes |
+| Protected | Yes | Yes | Yes | No | No |
+| Private | Yes | Yes | No | No | No |
+
+There are no `public` modifiers. It is by default.
+
+Access modifiers in Scala can be augmented. For example, a modifier can be applied to restrict access to a particular package as follows.
+
+```scala
+package Country {
+  package Professional {
+    class Executive {
+      private[Professional] var jobTitle = "Big Data Engineer"
+      private[Country] var friend = "Amar Akbar Anthony"
+      protected[this] var secret = "Age"
+
+      def getInfo(another:Executive) {
+        println(another.jobTitle)
+        println(another.friend)
+        println(another.secret) // not allowed
+        println(this.secret) // allowed
+      }
+    }
+  }
+}
+```
+
+### constructors
+
+In Scala, there are two types of constructors, primary and auxiliary.  Primary constructor is the class's body and its parameter list appears after the class name.
+
+```scala
+class Animal(animalName: String, animalAge: Int) {
+  def getAnimalName(): String = {
+    animalName
+  }
+  def getAnimalAge(): Int = {
+    animalAge
+  }
+}
+```
+
+We create an use the object as follows:
+
+```scala
+object RunAnimalExample extends App {
+  val animalObj = new Animal("Cat", -1)
+  println(animalObj.getAnimalName)
+  println(animalObj.getAnimalAge)
+}
+```
+
+[Animal Run Example](Animal2.scala)
+
+Parameters are given in the class definition to represent constructors. If we declare a constructor, we cannot create a class without providing the default values of the parameters that are specified in the constructor.
+
+[Auxiliary constructor](AuxiliaryConstructor.scala)
+
+```shell
+scalac AuxiliaryConstructor.scala
+scala constructors
+```
+
+### Traits
+
+It is similar to the notion of interface in Java, execept that it can contain concrete methods. They don't have constructors.
+
+```scala
+trait Animal {
+  val age:Int
+  val gender:String
+}
+```
+
+We can extend a trait or a class using `extends` keyword. However, traits cannot be instantiated.
+
+The difference between abstract class and traits is that in an abstract class you have constructor parameters, type parameters and multiple parameters. However, a trait in Scala can have only type parameters. Abstract class can extend trait.
+
+Abstract class can have constructor parameters as well as type parameters.
+
+```scala
+abstract class Animal(name:String = "notset") {
+  def getAnimalAge
+  def getAnimalGender: starting
+  def getAnimalName: String = {
+    animalName
+  }
+}
+```
+
+To overrride a method we can use `override` keyword.
+
+A **case class** is an instantiatiable class that includes several automatically generated methods. It is like switch statement.
+
+**Packages** are supported by scala as well. We can define package using `package` keyword. We can import files using following syntax
+
+```scala
+import java.io.File // single import
+import java.io._ // everything imported
+import java.io.{File, IOException} // multiple imports from a package
+import java.util.{List => UtilList} // List renamed to UtilList
+```
+
+We can make use of Java programming inside scala.
+
+```scala
+import java.util.ArrayList
+val animals = new ArrayList[String]
+animals.add("cat")
+```
+
+**Pattern Matching** is used like a case statement.
+Check [this](PatternTest.scala) example.
+
+[Pattern matching example](PatternMatching2.scala)
+
+Scala supports **implicit** conversion. That means it will automatically convert one value to another and some other implicit operations.
+
+```scala
+implicit def stringToInt(s:String) = s.toInt
+
+def add (x:Int, y: Int) = x + y
+add(1, "2")
+```
+
+### Generics in scala
+
+We can define [generic classes in Scala](Stack.scala)
+
+## Build Tool
+
+For scala, we use SBT tools for building, but Maven, Gradle can be used.
+1. Go to project folder for example test_proj.
+2. Create build.sbt file in this folder.
+3. Now run `sbt` command. It will download bunch of files and prompt will change to `>` symbol.
+4. Now we can run different commands like `compile`, `test`, `run`, etc. to work on it.
+5. We can also use Maven or Gradle with eclipse, but we need to install various plugins for them to work.
+
+
+## Functional Programming in Scala
+
+Functional programming ensures immutability of data. It is also about writing pure functions.
+
+Functional programming provides three main advantages.
+
+- Close to mathematical thinking
+- No side efects, so it allows parallelization and also easy for debugging
+- Fewer lines of code without sacrificing clarity.
