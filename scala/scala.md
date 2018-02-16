@@ -308,3 +308,216 @@ Functional programming provides three main advantages.
 - Close to mathematical thinking
 - No side efects, so it allows parallelization and also easy for debugging
 - Fewer lines of code without sacrificing clarity.
+
+Scala supports pure functions as well as higher order functions. **Pure functions** are easy to implement
+
+```scala
+def pureFunc(cityName: String) = s"I live in $cityName"
+
+def notPureFuunc(cityName: String) = println(s"I live in $cityName")
+```
+
+**Anonymous functions** can be declared like JavaScript.
+
+```scala
+def transferMoney(money: Double, bankFee:Double => Double) : Double = {
+  money + bankFee(money)
+}
+
+transferMoney(100, (amount: Double) => amount * 0.05) // 105.0
+```
+
+**Higher order functions** allow to pass functions as parameters and even return a function as a result from another function.
+
+```scala
+object Test {
+  def main(args: Array[String]) {
+    println(testHOF(paramFunc, 10))
+  }
+
+  def testHOF(func:Int => String, value: Int) = func(value)
+}
+```
+
+```scala
+def applyFunctionOnRange(begin: Int, end: Int, func: Int => AnyVal): Unit = {
+  for (i <- begin to end)
+    println(func(i))
+}
+```
+
+Function as a return value
+
+```scala
+def transferMoney(money: Double) = {
+  if(money > 10000)
+    (money: Double) => "Dear Custoemer, we are going to add the following fee: " + money * 0.05
+  else
+    (money: Double) => "Dear Customer, we are going to add the following fee: " + money * 0.01
+}
+val returnedFunction = transferMoney(15000)
+returnedFunction(1500)
+```
+
+### Error Handling
+Scala can throw exception using `throws` just like Java language. We catch the exception using `catch` block but it uses case match. It also supports `finally` keyword.
+
+```scala
+try {
+
+}
+catch {
+  case foo: FooException => handleFoo(foo)
+  case bar: BarException => handleBar(bar)
+  case _: Throwable => println("Some other error")
+}
+finally {
+  // do something to clean up
+}
+```
+
+[File exception handling example](FileExceptionHandling.scala)
+
+Scala also supports `Either`. Either[X, Y] is an instance that contains either an instance of X or an instance of Y but not both. These subtypes are called Left and Right.
+
+[Either example](EitherExample.scala)
+
+If you want to run tasks in a non-blocking way and need a way to handle the results when they finish, Scala provides **Futures**.
+
+
+## Collection API
+
+Mutable collection values can be changed, updated or extended when necessary. Most collection classes are located in the package `scala.collection`, `scala.collection.immutable` and `scala.collection.mutable`. Scala collections extend from Traversable trait.
+
+**Traversable** is the root of collections hierarchy. It has one abstract method `foreach`. **Iterable** is the second in the hierarchy. It has abstract method called `iterator` and implements `foreach`.
+
+**Seq**: sequence is divided into LinearSeq and IndexedSeq.
+
+Scala imports immutable collections by default and if you want to use mutable, you need to import them.
+
+### Arrays
+
+Array is a mutable collection.
+
+```scala
+val numbers: Array[Int] = Array[Int](1,2,3,5)
+
+println("The elements of array")
+for(elem <- numbers) {
+  println(" " + elem)
+}
+
+println(numbres(2))
+
+var total = 0
+for(i <- 0 to (numbers.length - 1)) {
+  total += numbers(i)
+}
+println("Sum : " + total)
+
+// Another way of creating Array
+var myArray1 = Range(5, 20, 2)
+var myArray2 = Range(5, 20)
+
+var myArray3 = concat(myArray1, myArray2)
+
+var myMatrix = ofDim[Int](4,4)
+for(i <- 0 to 3) {
+  for (j <- 0 to 3) {
+    myMatrix(i)(j) = j
+  }
+}
+```
+
+### Lists
+
+```scala
+val numbers = List(1, 2, 3, 4)
+numbers(3) = 10 // throws error
+
+val numbers = 1 :: 2 :: 3 :: Nil // another syntax to create list
+numbers.head
+numbers.tail
+
+numbers.isEmpty
+numbers.length
+
+var numbers2 = List (2,3)
+numbers ::: numbers2 // combine 2 lists and make third
+```
+
+### Sets
+
+In sets, order will not be preserved and sets don't allow duplicate elements.
+
+```scala
+val numbers = Set(1,3,5)
+val numbers2 = Set(2,4,6)
+numbers.head
+numbers.tail
+numbers.isEmpty
+numbers ++ numbers2 // combine two sets
+numbers.min
+numbers.max
+```
+
+### Tuples
+
+It is used to combine fixed numbers of items together. Scala has many Tuple classes based on the numbers of arguments. If we want tuple with three arguments we can create using:
+
+```scala
+val t = new Tuple3(20, "hello", Console)
+val tup1 = (20, "Hello", Console)
+tup1._2 // second element
+```
+
+### Maps
+
+Maps is key-value pair.
+
+```scala
+Map (1 -> 2)
+Map(2 -> "Two", 3 -> "Three")
+val capitals = Map("Ireland" -> "Dublin", "Britain" -> "London", "Germany" -> "Berlin")
+capitals.keys // returns list
+capitals.values
+capitals.isEmpty
+capitals.get("Ireland")
+```
+
+### Option
+
+An option can be either `Some` or `None` type. Scala's map produces Some vale if a value corresponding to a given key has been found, or None if the key is not defined in the Map.
+
+```scala
+def show(x: Option[String]) = x match {
+  case Some(s) => s
+  case None => "?"
+}
+```
+
+Scala has different functions for working with collections.
+
+```scala
+var l = List(1,2,3,4)
+l.forall(elem => elem % 2 == 0) // all elements even?
+l.filter(elem => elem % 2 == 0)
+l map (elem => elem * 2) // function can also be called like this
+l.take(2) // takes first two elements
+
+l.groupBy(x => if (x % 2 == 0) "even" else "odd") // returns Map with even and odd.
+l.init // get all elements except last one
+l.drop(2) // drop first two elements
+
+var l  = List(1,2,3,4,5)
+// dropWhile and takeWhile stops as soon as condition fails
+l dropWhile (x => x < 5) // drop elements less than 5 and return new list
+l takeWhile (x => x < 4)
+
+// flatMap flattens list of Lists
+var l = List(List(1,3), List(2,4))
+l flatMap (x => x) // List(1,3,2,4)
+l flatMap (x => x.map(x => x * x))
+```
+
+**Implicit Parameter** is a parameter passed to a constructor or a method and is marked as implicit, which means that the compiler will search for an implicit value within the scope if you don't provide a value for this parameter.
