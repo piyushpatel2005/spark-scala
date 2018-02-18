@@ -6,6 +6,7 @@
 
 **/.worksheet
 **/.settings
-*/.cahe-main
+*/.cache-main
 **/.classpath
 **/bin
+**/.project
