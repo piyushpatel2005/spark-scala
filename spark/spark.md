@@ -151,4 +151,70 @@ Distributed action is executed on the nodes in the cluster. This is the most com
 
 We can use `rdd.toDebugString` to check the lineage of each RDD.
 
-**Pair RDDs** consist of key-value tuples.
+**PairRDDs** consist of key-value tuples.
+**DoubleRDD** is a collection of double values.
+**SequenceFileRDD** is created from a sequence file which is a format of files in HDFS.
+**CoGroupedRDD** is an RDD that cogroups its parent.
+**ShuffledRDD** shuffles the RDD elements by key so as to accumulate values for the same key on the same executor to allow an aggregation or combiner logic.
+**UnionRDD** is a result of a union of two RDDs.
+
+```scala
+// PairRDD
+val statesPopulationRDD = sc.textFile("statesPopulation.csv")
+statesPopulationRDD.first
+statesPopulationRDD.take(5)
+// make pair of state name and population
+val pairRDD = statesPopulationRDD.map(record => (record.split(",")(0), record.split(",")(2)))
+pairRDD.take(10)
+
+// DoubleRDD
+val rdd_one = sc.parallelize(Seq(1.0, 2.0, 3.0))
+rdd_one.mean
+rdd_one.min
+rdd_one.stdev
+
+// SequenceFileRDD
+pairRDD.saveAsSequenceFile("seqfile")
+val seqRDD = sc.sequenceFile[String, String]("seqfile")
+seqRDD.take(10)
+
+// CoGroupedRDD
+val pairRDD2 = statesPopulationRDD.map(rec => (rec.split(",")(0), rec.split(",")(1)))
+val cogroupRDD = pairRDD.cogroup(pairRDD2)
+cogroupRDD.take(10)
+
+// ShuffledRDD
+val pairRDD = statesPopulationRDD.map(rec => (rec.split(",")(0), 1))
+pairRDD.take(5)
+val shuffledRDD = pairRDD.reduceByKey(_+_)
+shuffledRDD.take(5)
+
+// UnionRDD
+val rdd_one = sc.parallelize(Seq(1,2,3))
+val rdd_two = sc.parallelize(Seq(4,5,6))
+val unionRDD = rdd_one.union(rdd_two)
+unionRDD.take(10)
+
+// NewHadoopRDD
+val rdd_whole = sc.wholeTextFiles("sample.txt")
+rdd_whole.toDebugString
+```
+
+Aggregation functions aggregate the data.
+`groupByKey` is an expensive operation due to all the data shuffling needed. groupByKey must be able to hold all the key-value pairs for any key in memory. If the key has too many values, it can result in OutOfMemoryError. `reduceByKey` tends to improve the performance by not sending all elements of pairRDD using shuffles, but it uses combiner logic locally. This reduces network overhead. `aggregateByKey` is quite similar to reduceByKey, but it allows more flexibility for customization. `combineByKey` is very similar to aggregateByKey function.
+
+```scala
+val statesPopulationRDD = sc.textFile("statesPopulation.csv")
+statesPopulationRDd.take(5)
+val pairRDD = statesPopulationRDD.map(record => record.split(",")).map(t => (t(0), (t(1), t(2))))
+pairRDD.take(5) // ((State, (Year, Population)))
+```
+
+The number of partitions is important because this number directly influences the number of tasks that will be running RDD tranformations. If it is too small, we will use only a few CPUs/cores on a lot of data thus having a slower performance and making cluster underutilized. On the other hand, if partitions are too many, you will use more resources that you actually need and in a multi tenant environment could be causing starvation of resources for other jobs.
+
+### Partitions
+
+Two types of partitioners.
+
+1. HashPartitioner is the default partitioner in Spark and works by calculating a hash value for each key of the RDD elements. The default number of partitions is either from Spark configuration parameter `spark.default.parallelism` or the number of cores in the cluster.
+2. RangePartitioner works by partitioning the RDD into roughly equal ranges.
