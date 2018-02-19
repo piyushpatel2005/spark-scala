@@ -218,3 +218,81 @@ Two types of partitioners.
 
 1. HashPartitioner is the default partitioner in Spark and works by calculating a hash value for each key of the RDD elements. The default number of partitions is either from Spark configuration parameter `spark.default.parallelism` or the number of cores in the cluster.
 2. RangePartitioner works by partitioning the RDD into roughly equal ranges.
+
+Shuffling determines the Spark job execution process and influences how the job is split into stages. When an RDD can be derived from another RDd using simple one to one tranformation such as a filter function, then the child RDD is said to depend on the parent RDD on a one-to-one basis. This is narrow dependency. When RDD is derived from one or more RDDs by transferring data over the wire or exchanging data, the child RDD is said to depend on the parent RDDs participating in a shuffle operation. This is wide dependency.
+
+**Broadcast variables** are shared variables across all executors. They are created once in the Driver and then read only on executors. They use similar technique as BitTorrent where the dataset is distributed to all executors rather than having each executor pull the data from the Driver one by one.
+
+```scala
+val i = 5
+val bi = sc.broadcase(i) // broadcast the variable i
+bi.value // get the value
+```
+
+Broadcast variables do occupy memory on all executors and depending on the size of the data, this could cause resource issues at some point. We can free up resources from memory cache using `unpersist()`. We can also destroy broadcast variables completely removing them from all executors and the Driver too, making them inaccessible using `destroy` method.
+
+
+```scala
+val rdd_one = sc.parallelize(Seq(1,2,3))
+val k = 5
+val bk = sc.broadcast(k)
+rdd_one.map(j => j + bk.value).take(5)
+bk.unpersist
+rdd_one.map(j => J + bk.value).take(4)
+
+bk.destory
+```
+
+**Accumulators** are shared variables across executors typically used to add counters to Spark program. IF you have a spark program and would like to know errors or total records processed, we can add accumulators.
+
+```scala
+val acc1 = sc.longAccumulator("acc1")
+val someRDD = statesPopulationRDD.map(x => {acc1.add(1); x})
+acc1.value  // 0
+someRDD.count // 351
+acc1.values // 351
+```
+
+## Spark SQL
+
+Spark SQL works by parsing the SQL like statement into an Abstract Syntax tree (AST).
+
+### DataFrame
+
+It is an abstractio nof Resilient Distributed Datasets(RDD), dealing with higher level functions optimized using catalyst optimizer. Datasets were added in Spark 1.6 and provides benefits of strong typing on top of DataFrames. Since Spark 2.0, the DataFrame is an alias of a dataset. DataFrame is similar to a table in a relational database. Dataframes are again immutable.
+
+The DataFrame can be created by executing SQL queries, by loading external data such as Parquet, JSON, CSV, Hive, JDBC or by converting RDD into data frames.
+
+```scala
+val statesDF = spark.read.option("header", "true").option("inferschema", "true").option("sep", ",").csv("statesPopulation.csv")
+statesDF.printSchema
+statesDF.explain(true)
+statesDF.createOrReplaceTempView("states")
+statesDF.show(5)
+spark.sql("select * from states limit 5").show
+statesDF.sort(col("Population").desc).show(5)
+spark.sql("select * from states order by Population desc limit 5").show
+
+statesDF.groupBy("State").sum("Population").show(5)
+spark.sql("select State, sum(Population) from states group by State limit 5").show
+
+statesDF.groupBy("State").agg(sum("Population").alias("Total")).show(5)
+spark.sql("select State, sum(Population) as Total from states group by State limit 5").show
+
+statesDF.groupBy("State").agg(sum("Population").alias("Total")).explain(true)
+statesDF.groupBy("State").agg(sum("Population").alias("Total")).sort(col("Total").desc).show(5)
+spark.sql("select State, sum(Population) as Total from states group by State order by Total desc limit 5").show
+
+statesDF.groupBy("State").agg(
+  min("Population").alias("minTotal"),
+  max("Population").alias("maxTotal"),
+  avg("Population").alias("avgTotal")
+  ).sort(col("minTotal").desc).show(5)
+spark.sql("select State, min(Population) as minTotal, max(Population) as maxTotal, avg(Population) as avgTotal from states group by State order by minTotal desc limit 5").show
+```
+
+**Pivots** are used to create a different view, more suitable to doing many summarizations and aggregations.
+
+```scala
+statesDF.groupBy("State").pivot("Year").sum("Population").show(5)
+```
