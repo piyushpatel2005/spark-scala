@@ -253,6 +253,10 @@ someRDD.count // 351
 acc1.values // 351
 ```
 
+To run spark from command line,
+
+`spark-submit --class com.piyushpatel2005.spark.MovieSimilarities MovieSims.jar 50`
+
 ## Spark SQL
 
 Spark SQL works by parsing the SQL like statement into an Abstract Syntax tree (AST).
