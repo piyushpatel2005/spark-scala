@@ -1,0 +1,15 @@
+# Github Data analysis
+
+Prepare data set using Github archive
+
+$ mkdir -p $HOME/sia/github-archive
+$ cd $HOME/sia/github-archive
+$ wget http://data.githubarchive.org/2015-03-01-{0..23}.json.gz
+
+This will download data for one day from 1 to 23 hours.
+
+Decompress the files using
+
+$ gunzip *
+
+$ head -n 1 2015-03-01-0.json
