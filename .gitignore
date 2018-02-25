@@ -11,3 +11,8 @@
 **/bin
 **/.project
 /ml-100k
+**/target
+**/.idea
+**/.metadata
+**/metastore_db
+/lambda-pluralsight
