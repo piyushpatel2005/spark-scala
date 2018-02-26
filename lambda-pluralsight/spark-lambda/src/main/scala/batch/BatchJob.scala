@@ -2,8 +2,8 @@ package batch
 
 import java.lang.management.ManagementFactory
 
-import org.apache.spark.{SparkContext, SparkConf}
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.{SQLContext, SaveMode}
 import domain._
 
 
@@ -27,7 +27,7 @@ object BatchJob {
     import sqlContext.implicits._
 
     // intialize input RDD
-    val sourceFile = "file:///c:/tmp/spark-test/data.tsv"
+    val sourceFile = "file:///vagrant/data.tsv"
     val input = sc.textFile(sourceFile)
 
     // spark action results in job execution
@@ -41,8 +41,6 @@ object BatchJob {
         None
     }.toDF()
 
-    sqlContext.udf.register("UnderExposed", (pageViewCount: Long, purchaseCount: Long) => if(purchaseCount == 0) 0 else pageViewCount / purchaseCount)
-
     val df = inputDF.select(
       add_months(from_unixtime(inputDF("timestamp_hour") / 1000), 1).as("timestamp_hour"),
       inputDF("referrer"), inputDF("action"), inputDF("prevPage"), inputDF("page"), inputDF("visitor"), inputDF("product")
@@ -54,7 +52,6 @@ object BatchJob {
       """SELECT product, timestamp_hour, COUNT(DISTINCT visitor) AS unique_visitors
         |FROM activity GROUP BY product, timestamp_hour
       """.stripMargin)
-    visitorsByProduct.printSchema()
 
     val activityByProduct = sqlContext.sql("""SELECT
                                             product,
@@ -65,17 +62,8 @@ object BatchJob {
                                             from activity
                                             group by product, timestamp_hour """).cache()
 
-    activityByProduct.registerTempTable("activityByProduct")
-
-    val underExposedProducts = sqlContext.sql(
-      """SELECT
-        |product,
-        |timestamp_hour,
-        |UnderExposed(page_view_count, purchase_count) AS negative_exposure
-        |FROM activityByProduct
-        |ORDER BY negative_exposure DESC
-        |limit 5
-      """.stripMargin)
+    activityByProduct.write.partitionBy("timestamp_hour").mode(SaveMode.Append).parquet("hdfs://downloads:9000/lambda/batch1")
+//    activityByProduct.registerTempTable("activityByProduct")
 
     visitorsByProduct.foreach(println)
     activityByProduct.foreach(println)
