@@ -315,3 +315,195 @@ import org.apache.spark.sql.functions._
 val toUpper: String => String = _.toUpperCase
 val toUpperUDF = udf(toUpper)
 statesDF.withColumn("StateUpperCase", toUpperUDF(col("State"))).show(5)
+```
+
+We can infer schema from DataFrame using reflection. The Spark API provides case classes which can be used to define the schema of the table.
+
+We can also create schema without case classes by reading the header and specifying separator that is used to split the text lines.
+
+```scala
+val statesDF = spark.read.option("header", "true")
+  .option("inferschema", "true")
+  .option("sep", ",")
+  .csv("statesPopulation.csv")
+statesDF.schema
+statesDF.printSchema
+
+// Schema is described using StructType which is a collection of StructField objects.
+import org.apache.spark.sql.types.{StructType, IntegerType, StringType}
+val schema = new StructType().add("i", IntegerType).add("s", StringType)
+schema.printTreeString
+schema.prettyJson
+
+import org.apache.spark.sql.types._
+// spark 2.0 support a new way of defining schema using encoders.
+import org.apache.spark.sql.Encoders
+
+Encoders.product[(Integer, String)].schema.printTreeString
+case class Record(i: Integer, s: String)
+Encoders.product[Record].schema.printTreeString
+
+// All data types of Spark SQL are located in package org.apache.spark.sql.types.
+import org.apache.spark.sql.types._
+
+// Use DataTypes object to create complex Spark SQL types such as arrays, maps, etc.
+import org.apache.spark.sql.types.DataTypes
+val arrayType = DataTypes.createArrayType(IntegerType)
+```
+
+**Loading and Saving DataSets**
+
+Spark SQL can read data from external storage systems such as files, Hive Tables, JDBC databases through DataFrameReader interface.
+
+`spark.read.inputype`
+
+```scala
+val statesPopulationDF = spark.read
+    .option("header", "true")
+    .option("inferschema", "true")
+    .option("sep", ",")
+    .csv("statesPopulation.csv")
+val statesTaxRatesDF = spark.read
+    .option("header", "true")
+    .option("inferschema", "true")
+    .option("sep", ",")
+    .csv("statesTaxRates.csv")
+
+statesPopulationDF.write.option("header", "true").csv("statesPopulation_dup.csv")
+statesTaxRatesDF.write.option("header", "true").csv("statesTaxRates_dup.csv")
+```
+
+**Aggregation and Window functions**
+
+Most aggregation functions can be found in `org.apache.spark.sql.functions` package. We can also define User defined aggregation functions (UDAF).
+
+```scala
+val statesPopulationDF = spark.read
+    .option("header", "true")
+    .option("inferschema", "true")
+    .option("sep", ",")
+    .csv("statesPopulation.csv")
+statesPopulationDF.select(col("*")).agg(count("State")).show // OR
+statesPopulationDF.select(count("State")).show
+
+statesPopulationDF.select(col("*")).agg(countDistinct("State")).show
+statesPopulationDF.select(countDistinct("State")).show
+
+statesPopulationDF.select(first("State")).show
+statesPopulationDF.select(last("State")).show
+
+// approx_count_distinct counts faster at approximately distinct records.
+statesPopulationDF.select(col("*")).agg(approx_count_distinct("State")).show
+statesPopulationDF.select(approx_count_distinct("State", 0.2)).show
+statesPopulationDF.select(min("Population")).show
+statesPopulationDF.select(max("Population")).show
+statesPopulationDF.select(avg("Population")).show
+statesPopulationDF.select(sum("Population")).show
+
+// Kurtosis is a good measure of the weight of the distribution at the tail of the distribution. It is different than means and variances.
+import org.apache.spark.sql.functions._
+statesPopulationDF.select(kurtosis("Population")).show
+
+// Skewness measures the asymmetry of the values in your data around the average or mean
+statesPopulationDF.select(skewness("Population")).show
+
+// Variance is the average of the squared differences of each of the values from the mean.
+statesPopulationDF.select(var_pop("Population")).show
+
+// standard deviation is the square root of the variance
+statesPopulationDF.select(stddev("Population")).show
+
+// Covariance is the measure of the joint variability of two random variables. If greater values of one variable mainly corresponds with the greater values of the other variable, and the same holds for the lesser values, then the variables tend to show similar behavior and the covariance is positive.
+statesPopulationDF.select(covar_pop("Year", "Population")).show
+
+statesPopulationDF.groupBy("State").count.show(5)
+// Rollup is a multi-dimensional aggregation used to perform hierarchical calculations.
+// If we want to show number of records for each State and Year group.
+statesPopulationDF.rollup("State", "Year").count.show(5)
+// Cube is multi-dimensional aggregation used to perform hierarchical calculations just like Rollup
+// If we want to show the number of records for each State and Year group, as well as for each State (aggregating over all Years to give a grant total for each State irrespective of the Year)
+statesPopulationDF.cube("State", "Year").count.show(5)
+```
+
+**Window functions** are used to perform aggregations over a window of data rather than entire data.
+
+```scala
+import org.apache.spark.sql.exprssions.Window
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.max
+
+val windowSpec = Window
+  .partitionBy("State")
+  .orderBy(col("Population").desc)
+  .rowBetween(Window.unboundedPreceding, Window.currentRow)
+
+statesPopulationDF.select(col("State"), col("Year"), max("Population").over(windowSpec), rank().over(windowSpec)).sort("State", "Year").show(10)
+// ntiles is a popular aggregation over a window and is commonly used to divide input dataset into n parts.
+// For example, in predictive analytics, deciles(10 parts) are often used to first group the data and then divide it into 10 parts to get a fair distribution of data.
+
+statesPopulationDF.select(
+  col("State"), col("Year"),
+  ntile(2).over(windowSpec), rank().over(windowSpec))
+  .sort("State", "Year")
+```
+
+### Joins
+
+DataFrame joins are similar to table joins.
+A join between larger dataset and a smaller dataset can be done by broadcasting the smaller dataset to all executors where a partition from the left dataset exists.
+
+```scala
+val statesPopulationDF = spark.read
+  .option("header", "true")
+  .option("inferschema", "true")
+  .option("sep", ",")
+  .csv("statesPopulation.csv")
+val statesTaxRatesDF = spark.read
+  .option("header", "true")
+  .option("inferschema", "true")
+  .option("sep", ",")
+  .csv("statesTaxRates.csv")
+statesPopulationDF.createOrReplaceTempView("statePopulationDF")
+statesTaxRatesDF.createOrReplaceTempView("statesTaxRatesDF")
+
+val joinDF = statesPopulationDF.join(statesTaxRatesDF, statesPopulationDF("State") === statesTaxRatesDF("State"), "inner") // OR
+%sql
+val joinDF = spark.sql("""SELECT * FROM statesPopulationDF
+  INNER JOIN statesTaxRatesDF
+  ON statesPopulationDF.State = statesTaxRatesDF.State
+""")
+joinDF.count
+joinDF.show
+// If you have duplicate or multiple copies of the keys on either the left or right side, the join will take longer resulting in Cartesian join
+
+val leftOuter = statesPopulationDF.join(statesTaxRatesDF, statesPopulationDF("State") === statesTaxRatesDF("State"), "leftouter")
+%sql
+val leftOuter = spark.sql("""
+  SELECT * FROM statesPopulationDF
+    LEFT OUTER JOIN statesTaxRatesDF
+    ON statesPopulationDF.State = statesTaxRatesDF.State
+  """
+)
+// Similarly rightouter join and fullouter join
+// If there is little in common, fullouter join can result in very large results and slow performance.
+
+// Left antijoin results in rows from only left DF that are not part of right DF.
+
+val leftantiDF = statesPopulationDF.join(statesTaxRatesDF, statesPopulationDF("State") === statesTaxRatesDF("State"), "leftanti")
+%sql
+val leftantiDF = spark.sql("""
+  SELECT * FROM statesPopulationDF
+    LEFT ANTI JOIN statesTaxRatesDF
+    ON statesPopulationDF.State = statesTaxRatesDF.State
+""")
+leftantiDF.count
+
+// Left semi join results in rows from only left if and only if there is a corresponding row in right.
+val leftsemiDF = statesPopulationDF.join(statesTaxRatesDF, statesPopulationDF("State") === statesTaxRatesDF("State"), "leftsemi")
+
+// Cross join matches every row from left with every row from right generating cartesian cross product.
+// This is worst in performance
+val corssDF = statesPopulationDF.crossJoin(statesTaxRatesDF)
+```
+
+[Spark Streaming](spark-streaming.md)
