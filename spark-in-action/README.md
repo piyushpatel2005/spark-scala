@@ -20,3 +20,5 @@ Install Eclipse with M2eclipse-scala integration plugin.
 
 Add this url for location and name as m2eclipse-scala.
 http://alchim31.free.fr/m2e-scala/update-site
+
+RDD is divided into partitions. HashPartitioner is the default partitioner which calculates partition index based on element's java hash code

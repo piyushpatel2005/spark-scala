@@ -300,3 +300,18 @@ spark.sql("select State, min(Population) as minTotal, max(Population) as maxTota
 ```scala
 statesDF.groupBy("State").pivot("Year").sum("Population").show(5)
 ```
+
+**Filters** are used to filter DataFrames to filter out certain columns.
+
+```scala
+statesDF.filter("State== 'California'").explain(true)
+statesDF.filter("States == 'California'").show
+```
+
+In Spark defining **User Defined Functions** is pretty straight forward.
+
+```scala
+import org.apache.spark.sql.functions._
+val toUpper: String => String = _.toUpperCase
+val toUpperUDF = udf(toUpper)
+statesDF.withColumn("StateUpperCase", toUpperUDF(col("State"))).show(5)
