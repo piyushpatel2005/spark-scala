@@ -506,4 +506,6 @@ val leftsemiDF = statesPopulationDF.join(statesTaxRatesDF, statesPopulationDF("S
 val corssDF = statesPopulationDF.crossJoin(statesTaxRatesDF)
 ```
 
+[Spark Lessons](spark2.md)
+
 [Spark Streaming](spark-streaming.md)

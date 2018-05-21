@@ -14,3 +14,15 @@ For example, we might have various spark versions in `/opt/` directory and we ma
 sudo rm -f /usr/local/spark
 sudo ln -s /opt/spark-1.6.1-bin-hadoop2.4 /usr/local/spark
 ```
+
+**Enable SSH connection on Cloudera VM**
+
+Right click on the VirtualMachine and click Settings
+Click on General -> Advanced
+Set Shared Clipboard to Bidirectional
+
+Click on Network -> Advanced -> Port Forwarding
+Add a new entry
+Name: 2222
+Host Port: 2222
+Guest Port: 22

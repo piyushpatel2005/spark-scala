@@ -36,7 +36,7 @@ object StreamingJob {
       }
       }
 
-      activityStream.transform{ rdd => {
+      val statefulActivityByProduct = activityStream.transform( rdd => {
         val df = rdd.toDF()
         df.registerTempTable("activity")
         val activityByProduct = sqlContext.sql("""SELECT
@@ -53,9 +53,27 @@ object StreamingJob {
             r => ((r.getString(0), r.getLong(1)),
             ActivityByProduct(r.getString(0), r.getLong(1), r.getLong(2), r.getLong(3), r.getLong(4)))
           }
-      }}.print()
+      }).updateStateByKey((newItemsPerKey: Seq[ActivityByProduct], currentState: Option[(Long, Long, Long, Long)]) => {
+        var (prevTimestamp, purchase_count, add_to_cart_count, page_view_count) = currentState.getOrElse(0L, 0L, 0L)
+        var result: Option[(Long, Long, Long, Long)] = null
+        // remove key if it has been for a long time
+        if(newItemsPerKey.isEmpty) {
+          if(System.currentTimeMillis() - prevTimestamp > 30000 + 4000)
+            result = None
+          else
+            result = Some((prevTimestamp, purchase_count, add_to_cart_count, page_view_count))
+        } else {
+          newItemsPerKey.foreach(a => {
+            purchase_count += a.purchase_count
+            add_to_cart_count += a.add_to_cart_count
+            page_view_count += a.page_view_count
+          })
+          result = Some((System.currentTimeMillis(), purchase_count, add_to_cart_count, page_view_count))
+        }
+        result
+      })
 
-
+      statefulActivityByProduct.print(10)
       ssc
     }
 
